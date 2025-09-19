@@ -12,7 +12,7 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: #2b2118;
       background-color: #f5e9d4;
-      background-image: url('assets/bg.jpg'); /* <-- your cross background */
+      background-image: url('assets/bg.jpg'); /* your cross background */
       background-position: center;
       background-repeat: no-repeat;
       background-attachment: fixed;
@@ -46,9 +46,7 @@
       max-height: 50vh; overflow: auto; display: none;
     }
     .results.show { display: block; }
-    .hit {
-      padding: 10px 12px; border-bottom: 1px solid #f0e6d7; cursor: pointer;
-    }
+    .hit { padding: 10px 12px; border-bottom: 1px solid #f0e6d7; cursor: pointer; }
     .hit:last-child { border-bottom: 0; }
     .hit:hover, .hit.active { background: #fff7ea; }
     .hit .ref { color: #a86b3d; font-weight: 600; }
@@ -101,9 +99,7 @@
       header { grid-template-columns: 1fr; }
       .btns { justify-content: flex-end; }
     }
-    @media (min-height: 900px) {
-      .card { margin-top: clamp(280px, 62vh, 420px); }
-    }
+    @media (min-height: 900px) { .card { margin-top: clamp(280px, 62vh, 420px); } }
 
     /* ---------- Desktop / wide-screen tweaks ---------- */
     @media (min-width: 1024px) {
@@ -117,13 +113,7 @@
 
     /* ---------- Typography ---------- */
     .ref  { color: #a86b3d; font-weight: 600; }
-    .text {
-      font-size: 22px;
-      line-height: 1.6;
-      background: #ffefb8;
-      padding: 12px;
-      border-radius: 10px;
-    }
+    .text { font-size: 22px; line-height: 1.6; background: #ffefb8; padding: 12px; border-radius: 10px; }
     @media (max-width: 420px) { .text { font-size: 20px; } }
 
     /* ---------- Effects ---------- */
@@ -168,10 +158,29 @@
       if (!r.ok) throw new Error(path + ' not found');
       return r.json();
     }
+
+    // Your kjv.json is flat, like { "Genesis 1:1": "text", ... }.
+    // Convert it to nested { Book: { Chapter: { Verse: "text" }}}.
+    function normalizeFlatKJV(raw) {
+      const out = {};
+      for (const key in raw) {
+        const m = key.match(/^([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)$/);
+        if (!m) continue;
+        const book = m[1].replace(/\s+/g,' ').trim();
+        const ch   = String(m[2]);
+        const vs   = String(m[3]);
+        const text = raw[key];
+        if (!out[book]) out[book] = {};
+        if (!out[book][ch]) out[book][ch] = {};
+        out[book][ch][vs] = text;
+      }
+      return out;
+    }
+
     function refString(r) { return `${r.book} ${r.chapter}:${r.verse}`; }
     function pickRandom(a) { return a[Math.floor(Math.random()*a.length)]; }
 
-    // Flatten KJV for searching
+    // Flatten nested KJV for searching
     function flatten(db) {
       const out = [];
       for (const book in db) {
@@ -223,9 +232,7 @@
       };
       if (!tryLoad()) {
         const iv = setInterval(() => { if (tryLoad()) clearInterval(iv); }, 120);
-        window.speechSynthesis.onvoiceschanged = () => {
-          if (tryLoad()) window.speechSynthesis.onvoiceschanged = null;
-        };
+        window.speechSynthesis.onvoiceschanged = () => { if (tryLoad()) window.speechSynthesis.onvoiceschanged = null; };
       }
     }
     function speak(text) {
@@ -254,15 +261,12 @@
       if (exp) { txt.textContent = exp; box.hidden = false; }
       else { txt.textContent = 'Explanation coming soon.'; box.hidden = false; }
 
-      setTimeout(() => {
-        if (!chosenVoice) ensureVoices(r.text);
-        else speak(r.text);
-      }, 150);
+      setTimeout(() => { if (!chosenVoice) ensureVoices(r.text); else speak(r.text); }, 150);
     }
 
     async function rollRandom() {
-      if (!KJV) KJV = await loadJSON('data/kjv.json');
-      if (!verses) verses = flatten(KJV);
+      if (!KJV)      KJV      = normalizeFlatKJV(await loadJSON('data/kjv.json')); // <— key change
+      if (!verses)   verses   = flatten(KJV);
       if (!explains) explains = await loadJSON('data/explanations.json').catch(()=> ({}));
       showVerse(verses[Math.floor(Math.random()*verses.length)]);
       history.replaceState(null,'','#');
@@ -314,7 +318,7 @@
     function onQueryInput() {
       const query = q.value.trim();
       if (query.length < 2) { clearResults(); return; }
-      if (!verses) return; // still loading
+      if (!verses) return;
       renderResults(searchVerses(query));
     }
 
@@ -323,44 +327,31 @@
     q.addEventListener('keydown', (e) => {
       const items = Array.from(results.querySelectorAll('.hit'));
       if (!items.length) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault(); activeIndex = (activeIndex + 1) % items.length;
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault(); activeIndex = (activeIndex - 1 + items.length) % items.length;
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        const chosen = items[activeIndex] || items[0];
-        if (chosen) chosen.click();
-      } else if (e.key === 'Escape') {
-        clearResults(); q.blur();
-      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = (activeIndex + 1) % items.length; }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = (activeIndex - 1 + items.length) % items.length; }
+      else if (e.key === 'Enter') { e.preventDefault(); (items[activeIndex] || items[0])?.click(); }
+      else if (e.key === 'Escape') { clearResults(); q.blur(); }
       items.forEach(el => el.classList.remove('active'));
       if (activeIndex >= 0) items[activeIndex].classList.add('active');
     });
-    document.addEventListener('click', (e) => {
-      if (!results.contains(e.target) && e.target !== q) clearResults();
-    });
+    document.addEventListener('click', (e) => { if (!results.contains(e.target) && e.target !== q) clearResults(); });
 
     /* ===================== Init ===================== */
     async function init() {
       ensureVoices();
-      // Preload KJV + explanations and show a random verse
-      await rollRandom();
-
-      // Buttons
+      await rollRandom(); // first verse
       document.getElementById('againBtn').addEventListener('click', rollRandom);
       document.getElementById('speakBtn').addEventListener('click', () => current && speak(current.text));
 
-      // Handle back/forward cache
       window.addEventListener('pageshow', (e)=>{ if (e.persisted) rollRandom(); });
       document.addEventListener('visibilitychange', ()=> {
         const nav = performance.getEntriesByType('navigation')[0];
         if (document.visibilityState === 'visible' && nav && nav.type === 'back_forward') rollRandom();
       });
 
-      // Load JSONs in the background if not ready yet
-      if (!KJV) KJV = await loadJSON('data/kjv.json');
-      if (!verses) verses = flatten(KJV);
+      // Background loads (in case first call hit cache)
+      if (!KJV)      KJV      = normalizeFlatKJV(await loadJSON('data/kjv.json'));
+      if (!verses)   verses   = flatten(KJV);
       if (!explains) explains = await loadJSON('data/explanations.json').catch(()=> ({}));
     }
     init();
