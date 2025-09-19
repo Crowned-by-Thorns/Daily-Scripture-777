@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scripture of the Day</title>
-  <meta name="description" content="A page that shares a KJV Bible verse and a simple explanation each visit, with search." />
+  <meta name="description" content="A warm page that shares a Bible verse with a plain-English explanation.">
   <style>
     /* ---------- Page + background ---------- */
     body {
@@ -101,7 +101,7 @@
     }
     @media (min-height: 900px) { .card { margin-top: clamp(280px, 62vh, 420px); } }
 
-    /* ---------- Desktop / wide-screen tweaks ---------- */
+    /* ---------- Desktop tweaks ---------- */
     @media (min-width: 1024px) {
       body { background-position: center 32%; }
       .card { margin-top: clamp(300px, 68vh, 520px); max-width: 840px; }
@@ -113,7 +113,7 @@
 
     /* ---------- Typography ---------- */
     .ref  { color: #a86b3d; font-weight: 600; }
-    .text { font-size: 22px; line-height: 1.6; background: #ffefb8; padding: 12px; border-radius: 10px; }
+    .text { font-size: 22px; line-height: 1.6; background:#ffefb8; padding:12px; border-radius:10px; }
     @media (max-width: 420px) { .text { font-size: 20px; } }
 
     /* ---------- Effects ---------- */
@@ -127,7 +127,7 @@
 
     <!-- Search -->
     <div class="search-wrap">
-      <input id="q" class="search" type="search" placeholder="Search: e.g., John 3:16 or 'shepherd peace'…" autocomplete="off" />
+      <input id="q" class="search" type="search" placeholder="Search: John 3:16 or words like 'shepherd peace'…" autocomplete="off" />
       <div id="results" class="results" role="listbox" aria-label="Search results"></div>
     </div>
 
@@ -138,66 +138,88 @@
   </header>
 
   <main>
-    <!-- Main KJV verse -->
+    <!-- Main verse -->
     <section class="card" aria-live="polite">
       <div class="ref" id="ref"></div>
       <div class="text" id="text"></div>
     </section>
 
-    <!-- Plain-English explanation -->
-    <section class="explain" id="explainBox" hidden>
+    <!-- Explanation -->
+    <section class="explain" id="explainBox">
       <div class="label">What this means</div>
       <div class="content" id="explainText"></div>
     </section>
   </main>
 
   <script>
-    /* ===================== Data loaders ===================== */
-    async function loadJSON(path) {
-      const r = await fetch(path, { cache: 'no-store' });
-      if (!r.ok) throw new Error(path + ' not found');
-      return r.json();
-    }
-
-    // Your kjv.json is flat, like { "Genesis 1:1": "text", ... }.
-    // Convert it to nested { Book: { Chapter: { Verse: "text" }}}.
-    function normalizeFlatKJV(raw) {
-      const out = {};
-      for (const key in raw) {
-        const m = key.match(/^([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)$/);
-        if (!m) continue;
-        const book = m[1].replace(/\s+/g,' ').trim();
-        const ch   = String(m[2]);
-        const vs   = String(m[3]);
-        const text = raw[key];
-        if (!out[book]) out[book] = {};
-        if (!out[book][ch]) out[book][ch] = {};
-        out[book][ch][vs] = text;
+    /* ===================== Built-in verses (KJV) + explanations ===================== */
+    // Add/remove entries here. Book, chapter, verse are strings so search is easy.
+    const VERSES = [
+      {
+        book: "John", chapter: "3", verse: "16",
+        text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+        explain: "God’s love is so great that He gave Jesus for us. Anyone who trusts in Jesus is rescued from spiritual death and given eternal life with God."
+      },
+      {
+        book: "Psalms", chapter: "23", verse: "1",
+        text: "The LORD is my shepherd; I shall not want.",
+        explain: "God cares for me like a perfect shepherd. Because He provides and guides, I lack nothing I truly need."
+      },
+      {
+        book: "Psalms", chapter: "23", verse: "4",
+        text: "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.",
+        explain: "Even in dark and threatening times, I don’t have to be afraid. God is with me and protects me, and His presence steadies my heart."
+      },
+      {
+        book: "Proverbs", chapter: "3", verse: "5",
+        text: "Trust in the LORD with all thine heart; and lean not unto thine own understanding.",
+        explain: "Place your full confidence in God instead of relying only on your limited perspective."
+      },
+      {
+        book: "Proverbs", chapter: "3", verse: "6",
+        text: "In all thy ways acknowledge him, and he shall direct thy paths.",
+        explain: "Invite God into every part of life. As you look to Him, He will guide your steps on the right path."
+      },
+      {
+        book: "Jeremiah", chapter: "29", verse: "11",
+        text: "For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end.",
+        explain: "God’s heart toward His people is good. His plans aim to bring peace, hope, and a future under His care."
+      },
+      {
+        book: "Romans", chapter: "8", verse: "28",
+        text: "And we know that all things work together for good to them that love God, to them who are the called according to his purpose.",
+        explain: "For those who love God, He is at work in every situation—good or bad—bringing about ultimate good according to His purpose."
+      },
+      {
+        book: "Philippians", chapter: "4", verse: "6",
+        text: "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.",
+        explain: "Don’t live in anxiety. Bring everything to God in prayer with gratitude, and tell Him what you need."
+      },
+      {
+        book: "Philippians", chapter: "4", verse: "7",
+        text: "And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus.",
+        explain: "God gives a deep peace that doesn’t always make sense to us. That peace guards our hearts and minds in Christ."
+      },
+      {
+        book: "Philippians", chapter: "4", verse: "13",
+        text: "I can do all things through Christ which strengtheneth me.",
+        explain: "With Christ giving me strength, I can face whatever He calls me to—content and steady in every circumstance."
+      },
+      {
+        book: "Isaiah", chapter: "41", verse: "10",
+        text: "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee; yea, I will uphold thee with the right hand of my righteousness.",
+        explain: "Do not be afraid—God is present, strengthening and helping you. He holds you up with His strong, faithful hand."
       }
-      return out;
-    }
+    ];
 
-    function refString(r) { return `${r.book} ${r.chapter}:${r.verse}`; }
-    function pickRandom(a) { return a[Math.floor(Math.random()*a.length)]; }
-
-    // Flatten nested KJV for searching
-    function flatten(db) {
-      const out = [];
-      for (const book in db) {
-        for (const ch in db[book]) {
-          for (const v in db[book][ch]) {
-            const text = db[book][ch][v];
-            out.push({ book, chapter: ch, verse: v, text, ref: `${book} ${ch}:${v}`.toLowerCase() });
-          }
-        }
-      }
-      return out;
-    }
+    /* ===================== Helper functions ===================== */
+    function refString(r){ return `${r.book} ${r.chapter}:${r.verse}`; }
+    function pickRandom(a){ return a[Math.floor(Math.random()*a.length)]; }
 
     // Parse "John 3:16" style queries
     function parseRefQuery(s) {
       const m = s.trim().match(/^([1-3]?\s*[A-Za-z]+)\s+(\d+):(\d+)$/);
-      return m ? { book: m[1].replace(/\s+/g, ' ').trim(), chapter: m[2], verse: m[3] } : null;
+      return m ? { book: m[1].replace(/\s+/g,' ').trim(), chapter: m[2], verse: m[3] } : null;
     }
 
     /* ===================== Speech (US female) ===================== */
@@ -245,37 +267,25 @@
     }
 
     /* ===================== Page logic ===================== */
-    let KJV = null;          // nested (Book -> Chapter -> Verse)
-    let verses = null;       // flattened for search
-    let explains = null;     // explanations nested
     let current = null;
+    const q = document.getElementById('q');
+    const results = document.getElementById('results');
 
     function showVerse(r) {
-      document.getElementById('ref').textContent = `${r.book} ${r.chapter}:${r.verse}`;
+      document.getElementById('ref').textContent  = refString(r);
       document.getElementById('text').textContent = r.text;
+      document.getElementById('explainText').textContent = r.explain || 'Explanation coming soon.';
       current = r;
-
-      const exp = explains?.[r.book]?.[r.chapter]?.[r.verse];
-      const box = document.getElementById('explainBox');
-      const txt = document.getElementById('explainText');
-      if (exp) { txt.textContent = exp; box.hidden = false; }
-      else { txt.textContent = 'Explanation coming soon.'; box.hidden = false; }
 
       setTimeout(() => { if (!chosenVoice) ensureVoices(r.text); else speak(r.text); }, 150);
     }
 
     async function rollRandom() {
-      if (!KJV)      KJV      = normalizeFlatKJV(await loadJSON('data/kjv.json')); // <— key change
-      if (!verses)   verses   = flatten(KJV);
-      if (!explains) explains = await loadJSON('data/explanations.json').catch(()=> ({}));
-      showVerse(verses[Math.floor(Math.random()*verses.length)]);
+      showVerse(pickRandom(VERSES));
       history.replaceState(null,'','#');
     }
 
-    /* ===================== Search UI ===================== */
-    const q = document.getElementById('q');
-    const results = document.getElementById('results');
-    let activeIndex = -1;
+    /* ===================== Search (over the 10 entries) ===================== */
     function clearResults(){ results.innerHTML = ''; results.classList.remove('show'); activeIndex = -1; }
     function renderResults(items) {
       results.innerHTML = '';
@@ -284,7 +294,7 @@
         div.className = 'hit';
         div.setAttribute('role','option');
         div.dataset.index = i;
-        div.innerHTML = `<div class="ref">${r.book} ${r.chapter}:${r.verse}</div>
+        div.innerHTML = `<div class="ref">${refString(r)}</div>
                          <div class="snippet">${r.text.replace(/</g,'&lt;')}</div>`;
         div.addEventListener('click', () => { clearResults(); showVerse(r); q.blur(); });
         results.appendChild(div);
@@ -292,36 +302,30 @@
       results.classList.toggle('show', items.length > 0);
       activeIndex = -1;
     }
-    function scoreVerse(v, terms) {
-      let score = 0;
-      const hay = (v.ref + ' ' + v.text).toLowerCase();
-      for (const t of terms) if (hay.includes(t)) score += 1;
-      return score;
-    }
     function searchVerses(query) {
-      if (!verses) return [];
       const refQ = parseRefQuery(query);
       if (refQ) {
-        const t = (KJV?.[refQ.book]?.[refQ.chapter]?.[refQ.verse]) || null;
-        if (t) return [{...refQ, text: t}];
+        return VERSES.filter(v =>
+          v.book.toLowerCase() === refQ.book.toLowerCase() &&
+          v.chapter === String(refQ.chapter) &&
+          v.verse   === String(refQ.verse)
+        );
       }
       const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-      if (terms.length === 0) return [];
-      const hits = [];
-      for (const v of verses) {
-        const s = scoreVerse(v, terms);
-        if (s === terms.length) hits.push(v); // all terms present
-      }
-      return hits.slice(0, 200);
+      if (!terms.length) return [];
+      return VERSES.filter(v => {
+        const hay = (refString(v) + ' ' + v.text + ' ' + (v.explain||'')).toLowerCase();
+        return terms.every(t => hay.includes(t));
+      });
     }
 
+    /* results keyboard nav */
+    let activeIndex = -1;
     function onQueryInput() {
       const query = q.value.trim();
       if (query.length < 2) { clearResults(); return; }
-      if (!verses) return;
       renderResults(searchVerses(query));
     }
-
     q.addEventListener('input', onQueryInput);
     q.addEventListener('focus', onQueryInput);
     q.addEventListener('keydown', (e) => {
@@ -339,20 +343,9 @@
     /* ===================== Init ===================== */
     async function init() {
       ensureVoices();
-      await rollRandom(); // first verse
+      await rollRandom();
       document.getElementById('againBtn').addEventListener('click', rollRandom);
       document.getElementById('speakBtn').addEventListener('click', () => current && speak(current.text));
-
-      window.addEventListener('pageshow', (e)=>{ if (e.persisted) rollRandom(); });
-      document.addEventListener('visibilitychange', ()=> {
-        const nav = performance.getEntriesByType('navigation')[0];
-        if (document.visibilityState === 'visible' && nav && nav.type === 'back_forward') rollRandom();
-      });
-
-      // Background loads (in case first call hit cache)
-      if (!KJV)      KJV      = normalizeFlatKJV(await loadJSON('data/kjv.json'));
-      if (!verses)   verses   = flatten(KJV);
-      if (!explains) explains = await loadJSON('data/explanations.json').catch(()=> ({}));
     }
     init();
   </script>
