@@ -25,7 +25,7 @@
       margin:0;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color:var(--ink);
-      background:#f5e9d4 url('assets/bg.jpg') center / cover no-repeat fixed;
+      background:#f5e9d4 url('assets/bg.jpg') center 25% / cover no-repeat fixed;
       text-rendering:optimizeLegibility;
     }
 
@@ -115,17 +115,6 @@
     .explain .label{color:#8b7663; font-weight:800; margin-bottom:8px; letter-spacing:.2px}
     .explain .content{font-size:18px; line-height:1.7}
 
-    /* Tips / loading */
-    .tip{
-      text-align:center; font-size:13px; color:#6b5a4e; margin-top:6px;
-      text-shadow:0 1px 0 rgba(255,255,255,.5)
-    }
-    .skeleton{
-      background:linear-gradient(90deg,rgba(255,255,255,.6),rgba(255,255,255,.85),rgba(255,255,255,.6));
-      background-size:200% 100%; animation:shimmer 1.2s linear infinite;
-      border-radius:12px; height:3em
-    }
-
     /* Responsive */
     @media (max-width: 520px){
       header{grid-template-columns:1fr}
@@ -135,14 +124,13 @@
     }
     @media (min-height:900px){ .card{margin-top:clamp(280px,62vh,420px)} }
     @media (min-width:1024px){
-      body{background-position:center 32%}
+      body{background-position:center 40%}
       .card{margin-top:clamp(300px,68vh,520px)}
     }
     @media (min-aspect-ratio:16/10) and (min-width:1200px){ .card{margin-top:clamp(340px,72vh,560px)} }
 
     /* Effects */
     @keyframes fade-in{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)}}
-    @keyframes shimmer{from{background-position:-200% 0} to{background-position:200% 0}}
     @media (prefers-reduced-motion:reduce){ .card,.explain{animation:none} }
   </style>
 </head>
@@ -152,7 +140,7 @@
 
     <!-- Search -->
     <div class="search-wrap">
-      <input id="q" class="search" type="search" placeholder="Search: John 3:16 or words like ‘shepherd peace’…  (Press / to focus)" autocomplete="off" />
+      <input id="q" class="search" type="search" placeholder="Search: John 3:16 or words like ‘shepherd peace’…" autocomplete="off" />
       <div id="results" class="results" role="listbox" aria-label="Search results"></div>
     </div>
 
@@ -161,8 +149,8 @@
         <input id="autoSpeak" type="checkbox" checked />
         Auto-speak
       </label>
-      <button id="againBtn" aria-label="Another verse" title="R">⟳ Another</button>
-      <button id="speakBtn" aria-label="Replay" title="S">🔊 Replay</button>
+      <button id="againBtn" aria-label="Another verse">⟳ Another</button>
+      <button id="speakBtn" aria-label="Replay">🔊 Replay</button>
     </div>
   </header>
 
@@ -170,8 +158,7 @@
     <!-- Main verse -->
     <section class="card" aria-live="polite">
       <div class="ref" id="ref">Loading…</div>
-      <div id="text" class="text skeleton" aria-busy="true"></div>
-      <p class="tip" id="tip">Tip: press <strong>R</strong> for another verse, <strong>S</strong> to replay.</p>
+      <div id="text" class="text" aria-busy="true"></div>
     </section>
 
     <!-- Explanation -->
@@ -220,7 +207,6 @@
       return { book, chapter:m[2], verse:m[3] };
     }
 
-    // Highlight matches in a snippet
     function hi(text, terms){
       let out = text;
       terms.forEach(t=>{
@@ -230,7 +216,7 @@
       return out;
     }
 
-    /* ===================== Speech (US female) ===================== */
+    /* ===================== Speech ===================== */
     const PREFERRED_NAMES = ['Samantha','Google US English','Microsoft Aria','Microsoft Jenny','Microsoft Zira','Allison','Joanna'];
     let chosenVoice = null;
 
@@ -265,119 +251,52 @@
 
     /* ===================== Page logic ===================== */
     let current = null;
-
     function showVerse(v){
       $('#ref').textContent = byRef(v);
-      const textEl = $('#text');
-      textEl.classList.remove('skeleton'); textEl.removeAttribute('aria-busy');
-      textEl.textContent = v.text;
-
+      $('#text').textContent = v.text;
       $('#explainText').textContent = v.explain || 'Explanation coming soon.';
       $('#explainBox').hidden = false;
       current = v;
-
-      const auto = $('#autoSpeak').checked;
-      if(auto){
-        setTimeout(()=>{
-          if(!chosenVoice) ensureVoices();
-          speak(v.text);
-        }, 150);
-      }
+      if($('#autoSpeak').checked){ setTimeout(()=>{ if(!chosenVoice) ensureVoices(); speak(v.text); },150); }
     }
-
-    function rollRandom(){
-      showVerse(pickRandom(SCRIPTURES));
-      history.replaceState(null,'','#');
-    }
+    function rollRandom(){ showVerse(pickRandom(SCRIPTURES)); history.replaceState(null,'','#'); }
 
     /* ===================== Search ===================== */
-    const q = $('#q');
-    const results = $('#results');
-    let activeIndex = -1;
-
+    const q = $('#q'), results = $('#results'); let activeIndex=-1;
     function clearResults(){ results.innerHTML=''; results.classList.remove('show'); activeIndex=-1; }
     function renderResults(items, terms){
-      results.innerHTML = '';
+      results.innerHTML='';
       items.slice(0,30).forEach((v,i)=>{
-        const div = document.createElement('div');
-        div.className='hit'; div.dataset.index=i; div.setAttribute('role','option');
-        div.innerHTML = `
-          <div class="ref">${byRef(v)}</div>
-          <div class="snippet">${hi(v.text, terms)}</div>`;
-        div.addEventListener('click', ()=>{ clearResults(); showVerse(v); q.blur(); });
+        const div=document.createElement('div'); div.className='hit'; div.dataset.index=i;
+        div.innerHTML=`<div class="ref">${byRef(v)}</div><div class="snippet">${hi(v.text, terms)}</div>`;
+        div.addEventListener('click',()=>{ clearResults(); showVerse(v); q.blur(); });
         results.appendChild(div);
       });
-      results.classList.toggle('show', items.length>0);
-      activeIndex = -1;
+      results.classList.toggle('show', items.length>0); activeIndex=-1;
     }
     function searchVerses(query){
-      const refQ = parseRefQuery(query);
-      if(refQ){
-        const v = SCRIPTURES.find(s =>
-          s.book.toLowerCase()===refQ.book.toLowerCase() &&
-          s.chapter===String(refQ.chapter) && s.verse===String(refQ.verse)
-        );
-        return { items: v?[v]:[], terms: [] };
+      const refQ=parseRefQuery(query); if(refQ){
+        const v=SCRIPTURES.find(s=>s.book.toLowerCase()===refQ.book.toLowerCase()&&s.chapter===String(refQ.chapter)&&s.verse===String(refQ.verse));
+        return {items:v?[v]:[],terms:[]};
       }
-      const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-      if(!terms.length) return { items: [], terms: [] };
-      const items = SCRIPTURES.filter(v=>{
-        const hay = (byRef(v)+' '+v.text+' '+(v.explain||'')).toLowerCase();
-        return terms.every(t => hay.includes(t));
-      });
-      return { items, terms };
+      const terms=query.toLowerCase().trim().split(/\s+/).filter(Boolean); if(!terms.length)return{items:[],terms:[]};
+      const items=SCRIPTURES.filter(v=>{const hay=(byRef(v)+' '+v.text+' '+(v.explain||'')).toLowerCase(); return terms.every(t=>hay.includes(t));});
+      return{items,terms};
     }
-    function onQueryInput(){
-      const query = q.value.trim();
-      if(query.length<2){ clearResults(); return; }
-      const {items, terms} = searchVerses(query);
-      renderResults(items, terms);
-    }
-
-    q.addEventListener('input', onQueryInput);
-    q.addEventListener('focus', onQueryInput);
-    q.addEventListener('keydown', e=>{
-      const items = Array.from(results.querySelectorAll('.hit'));
-      if(!items.length) return;
-      if(e.key==='ArrowDown'){ e.preventDefault(); activeIndex = (activeIndex+1)%items.length; }
-      else if(e.key==='ArrowUp'){ e.preventDefault(); activeIndex = (activeIndex-1+items.length)%items.length; }
-      else if(e.key==='Enter'){ e.preventDefault(); (items[activeIndex] || items[0])?.click(); }
-      else if(e.key==='Escape'){ clearResults(); q.blur(); }
-      items.forEach(el=>el.classList.remove('active'));
-      if(activeIndex>=0) items[activeIndex].classList.add('active');
-    });
-    document.addEventListener('click', e=>{
-      if(!results.contains(e.target) && e.target!==q) clearResults();
-    });
+    function onQueryInput(){const query=q.value.trim();if(query.length<2){clearResults();return;}const {items,terms}=searchVerses(query);renderResults(items,terms);}
+    q.addEventListener('input',onQueryInput); q.addEventListener('focus',onQueryInput);
 
     /* ===================== Shortcuts & Init ===================== */
-    // Keyboard shortcuts
     window.addEventListener('keydown', e=>{
-      if(e.key==='/' && document.activeElement!==q){ e.preventDefault(); q.focus(); q.select(); }
-      if(e.key.toLowerCase()==='r'){ rollRandom(); }
-      if(e.key.toLowerCase()==='s'){ current && speak(current.text); }
+      if(e.key==='/'&&document.activeElement!==q){e.preventDefault();q.focus();q.select();}
+      if(e.key.toLowerCase()==='r'){rollRandom();}
+      if(e.key.toLowerCase()==='s'){current&&speak(current.text);}
     });
-
-    // Persist auto-speak preference
-    const saved = localStorage.getItem('autoSpeak');
-    if(saved!==null) $('#autoSpeak').checked = saved==='1';
-    $('#autoSpeak').addEventListener('change', ()=> localStorage.setItem('autoSpeak', $('#autoSpeak').checked ? '1':'0'));
-
-    // Init
-    ensureVoices();
-    rollRandom();
-
-    // Friendly tip if speech is blocked by browser policy
-    setTimeout(()=>{
-      if(speechSynthesis && speechSynthesis.pending===false && $('#autoSpeak').checked){
-        // If nothing has spoken yet, keep the tip visible; else remove it on replay.
-      }
-      $('#speakBtn').addEventListener('click', ()=> $('#tip').style.display='none');
-    },700);
-
-    // Buttons
-    $('#againBtn').addEventListener('click', rollRandom);
-    $('#speakBtn').addEventListener('click', ()=> current && speak(current.text));
+    const saved=localStorage.getItem('autoSpeak'); if(saved!==null)$('#autoSpeak').checked=saved==='1';
+    $('#autoSpeak').addEventListener('change',()=>localStorage.setItem('autoSpeak',$('#autoSpeak').checked?'1':'0'));
+    ensureVoices(); rollRandom();
+    $('#againBtn').addEventListener('click',rollRandom);
+    $('#speakBtn').addEventListener('click',()=>current&&speak(current.text));
   </script>
 </body>
 </html>
